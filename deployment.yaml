@@ -1,0 +1,44 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vulnapp-deployment
+  labels:
+    app: vulnapp
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: vulnapp
+  template:
+    metadata:
+      labels:
+        app: vulnapp
+    spec:
+      containers:
+      - name: vulnapp
+        image: 027423892923.dkr.ecr.us-east-2.amazonaws.com/mydevsecopsproject
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8080
+        env:
+        - name: SPRING_DATASOURCE_URL
+          value: jdbc:h2:mem:testdb
+        - name: SPRING_H2_CONSOLE_ENABLED
+          value: "true"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: vulnapp
+    k8s-app: vulnapp
+  name: vulnapp-service
+spec:
+  ports:
+  - name: http
+    port: 80
+    protocol: TCP
+    targetPort: 8080
+  type: LoadBalancer
+  selector:
+    app: vulnapp
