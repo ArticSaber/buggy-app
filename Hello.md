@@ -1,84 +1,84 @@
 ```
-pipeline {
-    agent any
+Sure — here’s a clean, professional setup using oracledb, python-dotenv, and a modular structure (db.py, app.py, .env). This is the kind of structure you'd see in real-world projects, and it's production-friendly while staying simple.
 
-    parameters {
-        string(name: 'REMOTE_HOST', defaultValue: '', description: 'Enter the remote host IP or hostname')
-        string(name: 'REMOTE_USER', defaultValue: '', description: 'Enter the SSH username')
-        password(name: 'REMOTE_PASSWORD', defaultValue: '', description: 'Enter the SSH password')
-    }
 
-    environment {
-        REMOTE_HOST = "${params.REMOTE_HOST}"
-        REMOTE_USER = "${params.REMOTE_USER}"
-        REMOTE_PASSWORD = "${params.REMOTE_PASSWORD}"
-    }
+---
 
-    stages {
-        stage('Validate Parameters') {
-            steps {
-                script {
-                    if (!REMOTE_HOST || !REMOTE_USER || !REMOTE_PASSWORD) {
-                        error("REMOTE_HOST, REMOTE_USER, and REMOTE_PASSWORD parameters are required.")
-                    }
-                }
-            }
-        }
+.env
 
-        stage('SSH and Collect Metrics') {
-            steps {
-                script {
-                    echo "Attempting SSH connection as user: ${REMOTE_USER} to host: ${REMOTE_HOST}"
+DB_USER=your_username
+DB_PASSWORD=your_password
+DB_DSN=your_host:your_port/your_service_name
 
-                    // Capture the performance metrics securely
-                    def metrics = ''
-                    def timestamp = sh(script: "date +'%Y-%m-%d %H:%M:%S'", returnStdout: true).trim()
 
-                    try {
-                        // SSH into the remote machine using sshpass
-                        metrics = sh(script: """
-                            sshpass -p '${REMOTE_PASSWORD}' ssh -o StrictHostKeyChecking=no ${REMOTE_USER}@${REMOTE_HOST} << EOF
-                            echo "CPU Usage (%)" && top -bn1 | grep "Cpu(s)" | awk '{print \$2 + \$4}'
-                            echo "Memory Usage (MB)" && free -m | awk 'NR==2{printf "%.2f", \$3*100/\$2 }'
-                            echo "Disk Usage" && df -h | awk '\$NF=="/"{print \$5}'
-                            echo "Load Average" && uptime | awk -F 'load average:' '{ print \$2 }'
-                            EOF
-                        """, returnStdout: true).trim()
-                    } catch (Exception e) {
-                        error("Failed to fetch performance metrics: ${e}")
-                    }
+---
 
-                    // Format metrics into CSV content
-                    def csvContent = "Timestamp,Metric,Value\n"
-                    metrics.split("\n").each { line ->
-                        def parts = line.split(":")
-                        if (parts.length == 2) {
-                            def metric = parts[0].trim()
-                            def value = parts[1].trim()
-                            csvContent += "${timestamp},${metric},${value}\n"
-                        }
-                    }
+db.py
 
-                    // Write to CSV
-                    writeFile file: 'performance_metrics.csv', text: csvContent
-                }
-            }
-        }
+import oracledb
+from dotenv import load_dotenv
+import os
 
-        stage('Archive Results') {
-            steps {
-                archiveArtifacts artifacts: 'performance_metrics.csv', fingerprint: true
-            }
-        }
-    }
+load_dotenv()
 
-    post {
-        always {
-            echo "Pipeline execution completed."
-        }
-        failure {
-            echo "Pipeline failed. Check logs for details."
-        }
-    }
-}
+# Load environment variables
+DB_USER = os.getenv("DB_USER")
+DB_PASSWORD = os.getenv("DB_PASSWORD")
+DB_DSN = os.getenv("DB_DSN")
+
+# Create a connection pool (recommended for performance)
+pool = oracledb.create_pool(
+    user=DB_USER,
+    password=DB_PASSWORD,
+    dsn=DB_DSN,
+    min=1,
+    max=5,
+    increment=1,
+    encoding="UTF-8"
+)
+
+def get_connection():
+    return pool.acquire()
+
+
+---
+
+app.py
+
+from db import get_connection
+
+def fetch_data():
+    with get_connection() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute("SELECT * FROM your_table")
+            for row in cursor:
+                print(row)
+
+if __name__ == "__main__":
+    fetch_data()
+
+
+---
+
+Install Dependencies
+
+pip install oracledb python-dotenv
+
+
+---
+
+Let me know if you want:
+
+SQLAlchemy integration
+
+Async version
+
+Error logging
+
+Query parameters for safety
+
+
+I can layer it up cleanly.
+
+
 ```
